@@ -8,23 +8,26 @@ OUTPUT_DIR = "ham_veriler"
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-
+#fonksiyon string alıyor ve string döndürüyor
 def guvenli_dosya_adi(grup: str) -> str:
     return grup.replace(" ", "_").replace("/", "-").replace("\\", "-").replace(",", "")
 
 
 with sync_playwright() as p:
+    #Headless browser, arka planda görünmeden çalışan browser demek.
     browser = p.chromium.launch(headless=False)
-    page = browser.new_page(viewport={"width": 1600, "height": 1200})
+    page = browser.new_page()
     page.goto("https://eportal.izto.org.tr/web/Uye_Firmalar_Yeni.aspx")
 
     options = page.locator("#MeslekGrubuSecHtml option").all()
 
     meslek_gruplari = []
-    for opt in options:
-        val = opt.get_attribute("value")
-        text = opt.inner_text().strip()
-        if val and val not in ["0", "", "Seçiniz"]:
+    #<option value="15">Tekstil</option>
+    for x in options:
+        val = x.get_attribute("value")         #val ="15"
+        text = x.inner_text().strip() # text = "Tekstil"
+        #"if val" boş değilse devam et
+        if val and val != "0" and text != "Seçiniz":
             meslek_gruplari.append(text)
 
     toplam = len(meslek_gruplari)
@@ -34,7 +37,7 @@ with sync_playwright() as p:
     atlanan = 0
     basarisiz = []
 
-    for i, grup in enumerate(meslek_gruplari, start=1):
+    for i, grup in enumerate(meslek_gruplari, start=1): #i = 1 grup = "Gıda"
         dosya_adi = guvenli_dosya_adi(grup)
         hedef_yol = f"{OUTPUT_DIR}/{dosya_adi}.xlsx"
 
@@ -43,6 +46,8 @@ with sync_playwright() as p:
             print(f"[{i}/{toplam}] {grup} -> zaten mevcut, atlanıyor.")
             atlanan += 1
             continue
+
+
 
         print(f"\n[{i}/{toplam}] [{grup}] deneniyor...")
 
@@ -53,7 +58,6 @@ with sync_playwright() as p:
 
             # B. Arama kutusuna grup adını yaz (kalabalık listede doğru öğeye ulaşmak için)
             arama_kutusu = page.locator("#meslekGrubuSecArama")
-            arama_kutusu.fill("")
             arama_kutusu.fill(grup)
             time.sleep(0.4)
 
@@ -75,11 +79,11 @@ with sync_playwright() as p:
             download = download_info.value
             download.save_as(hedef_yol)
 
-            print(f"  ✅ Başarılı: {dosya_adi}.xlsx")
+            print(f"   Başarılı: {dosya_adi}.xlsx")
             basarili += 1
 
         except Exception as e:
-            print(f"  ❌ HATA: {grup}")
+            print(f"   HATA: {grup}")
             traceback.print_exc()
             basarisiz.append(grup)
 
