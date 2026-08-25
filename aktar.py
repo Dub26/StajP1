@@ -1,50 +1,31 @@
 import pandas as pd
-import glob
-import os
+from sqlalchemy import create_engine
 
-# 1. Klasördeki Excel dosyalarının yollarını bul; Excel'in geçici kilit dosyalarını alma
-dosya_yollari = [
-    dosya for dosya in glob.glob("ham_veriler/*.xlsx")
-    if not os.path.basename(dosya).startswith("~$")
-]
-tum_veriler = []
+# 1. Excel dosyasını oku
+dosya_yolu = "izto_tum_firmalar_temiz.xlsx"
+print("1. Excel dosyası okunuyor, lütfen bekleyin...")
+df = pd.read_excel(r"C:\Users\bulbu\IdeaProjects\StajP1\izto_tum_firmalar_temiz.xlsx", dtype=str)
 
-print(f"Toplam {len(dosya_yollari)} Excel dosyası birleştiriliyor...\n")
+# MySQL'de boşluk ve Türkçe karakterler hata vermesin diye sütun isimlerini temizliyoruz
+df.columns = ['oda_sicil_no', 'ticari_sicil_no', 'meslek_grubu', 'nace_kodu', 'unvani', 'ilce', 'tescilli_adresi', 'web_adresi']
 
-for dosya in dosya_yollari:
-    try:
-        # dtype=str ile tüm sütunları metin olarak okuyoruz ki sicil numaraları bozulmasın
-        df = pd.read_excel(dosya, dtype=str)
-        tum_veriler.append(df)
-    except Exception as e:
-        print(f"Hata: {dosya} okunamadı. Detay: {e}")
+# 2. MySQL Bağlantı Bilgileri (Belirlediğimiz şifre ve veritabanı)
+kullanici = "root"
+sifre = "123456" 
+host = "127.0.0.1"
+port = "3306"
+veritaban_adi = "staj_db" 
 
-if not tum_veriler:
-    raise RuntimeError(
-        "Hiçbir Excel dosyası okunamadı. 'openpyxl' paketinin kurulu olduğunu kontrol edin."
-    )
+# 3. MySQL'e Bağlan ve Aktar
+try:
+    print("2. Veritabanına bağlanılıyor...")
+    motor = create_engine(f'mysql+pymysql://{kullanici}:{sifre}@{host}:{port}/{veritaban_adi}')
+    
+    tablo_adi = "izto_firmalar"
+    
+    # Veriyi MySQL'e yaz
+    df.to_sql(name=tablo_adi, con=motor, if_exists='replace', index=False)
+    print("3. Harika! Excel'deki tüm firmalar başarıyla MySQL'e aktarıldı. 🚀")
 
-# 2. Tüm tabloları alt alta ekle
-ana_tablo = pd.concat(tum_veriler, ignore_index=True)
-
-print("Veriler birleştirildi, temizlik aşamasına geçiliyor...")
-
-# 3. VERİ TEMİZLİĞİ (Transform)
-
-# A. Tüm hücrelerdeki gereksiz sağ/sol boşlukları temizle (Örn: "BORNOVA   " -> "BORNOVA")
-for kolon in ana_tablo.columns:
-    if ana_tablo[kolon].dtype == 'object':
-        ana_tablo[kolon] = ana_tablo[kolon].str.strip()
-
-# B. Mükerrer (Tekrar eden) kayıtları sil
-# Bir firma birden fazla Excel'de yanlışlıkla inmiş olabilir, Oda Sicil No'ya göre tekilleştiriyoruz
-ana_tablo.drop_duplicates(subset=['Oda Sicil No'], keep='first', inplace=True)
-
-# C. Boş ('NaN') değerleri SQL'in hata vermemesi için boş metne ("") çevir
-ana_tablo.fillna("", inplace=True)
-
-# 4. Sonucu temiz, tek bir dev Excel dosyası olarak kaydet
-hedef_dosya = "izto_tum_firmalar_temiz.xlsx"
-ana_tablo.to_excel(hedef_dosya, index=False)
-
-print(f"İşlem tamam! Toplam {len(ana_tablo)} benzersiz firma {hedef_dosya} dosyasına kaydedildi.")
+except Exception as e:
+    print(f"Bir hata oluştu: {e}")
