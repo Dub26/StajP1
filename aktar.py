@@ -11,7 +11,7 @@ df.columns = ['oda_sicil_no', 'ticari_sicil_no', 'meslek_grubu', 'nace_kodu', 'u
 
 # 2. MySQL Bağlantı Bilgileri (Belirlediğimiz şifre ve veritabanı)
 kullanici = "root"
-sifre = "123456" 
+sifre = "123456abC" 
 host = "127.0.0.1"
 port = "3306"
 veritaban_adi = "staj_db" 
