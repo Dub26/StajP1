@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [isSearched, setIsSearched] = useState(false);
@@ -20,6 +19,32 @@ export default function Home() {
   });
 
   const [filtrelenmisFirmalar, setFiltrelenmisFirmalar] = useState<any[]>([]);
+  
+  // Backend'den gelecek verileri tutacağımız state'ler
+  const [meslekListesi, setMeslekListesi] = useState<string[]>([]);
+  const [ilceListesi, setIlceListesi] = useState<string[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [isNaceAcik, setIsNaceAcik] = useState(false);
+  const [toastMesaj, setToastMesaj] = useState<string | null>(null);
+
+  // --- SAYFA İLK AÇILDIĞINDA İLÇE VE MESLEKLERİ ÇEKEN KISIM ---
+  useEffect(() => {
+    const listeleriCek = async () => {
+      try {
+        const meslekResponse = await fetch("http://localhost:8000/api/meslekler");
+        const ilceResponse = await fetch("http://localhost:8000/api/ilceler");
+        
+        if (meslekResponse.ok && ilceResponse.ok) {
+          setMeslekListesi(await meslekResponse.json());
+          setIlceListesi(await ilceResponse.json());
+        }
+      } catch (error) {
+        console.error("Listeler çekilirken hata oluştu:", error);
+      }
+    };
+    listeleriCek();
+  }, []);
 
   const handleKutuDegisimi = (e: any) => {
     const kutuAdi = e.target.name;
@@ -27,34 +52,23 @@ export default function Home() {
     setKriterler({ ...kriterler, [kutuAdi]: yazilanYazi });
   };
 
-  const [isLoading, setIsLoading] = useState(false);
-
-  // --- YENİ EKLENEN STATE'LER ---
-  const [isNaceAcik, setIsNaceAcik] = useState(false); // Nace paneli açık mı?
-  const [toastMesaj, setToastMesaj] = useState<string | null>(null); // Turuncu uyarı mesajı
-
   const handleSorgula = async () => {
-    // 1. Butona basıldığı an yükleniyor animasyonunu başlat
     setIsLoading(true);
 
     try {
-      // 2. FastAPI Backend'ine (kendi yazdığımız motora) gerçek bir istek (POST) atıyoruz!
       const response = await fetch("http://localhost:8000/api/firmalar/sorgula", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(kriterler), // Frontend'deki kutularda ne yazıyorsa aynen yolla
+        body: JSON.stringify(kriterler),
       });
 
       if (!response.ok) {
         throw new Error("Sunucuya ulaşılamadı veya bir hata oluştu.");
       }
 
-      // 3. Backend'den dönen gerçek MySQL verilerini (JSON) al
       const gercekVeriler = await response.json();
-
-      // 4. Verileri ekrana (state'e) bas
       setFiltrelenmisFirmalar(gercekVeriler);
       setIsSearched(true);
 
@@ -62,27 +76,21 @@ export default function Home() {
       console.error("Arama hatası:", error);
       alert("Backend'e ulaşılamıyor! Terminalde uvicorn sunucusunun çalıştığından emin ol.");
     } finally {
-      // 5. İşlem bitince yükleniyor animasyonunu durdur
       setIsLoading(false);
     }
   };
 
-  // --- YENİ EKLENEN NACE KODU MANTIĞI ---
   const handleNaceYardimToggle = () => {
-    // Meslek Grubu seçilmediyse turuncu uyarıyı ver
     if (kriterler.meslekGrubu === "Seçiniz" || kriterler.meslekGrubu === "") {
       setToastMesaj("Lütfen Meslek Grubunu Seçiniz!!!");
       setIsNaceAcik(false); 
-      // Uyarıyı 4 saniye sonra otomatik ekrandan sil
       setTimeout(() => setToastMesaj(null), 4000);
     } else {
-      // Seçiliyse paneli aç/kapat
       setIsNaceAcik(!isNaceAcik);
     }
   };
 
   const handleNaceSatirSec = (kod: string) => {
-    // Kodu seçince senin 120px'lik 3 kutuna parçalayıp dolduruyor
     const parcalar = kod.split(".");
     setKriterler({
       ...kriterler,
@@ -90,14 +98,12 @@ export default function Home() {
       nace2: parcalar[1] || "",
       nace3: parcalar[2] || ""
     });
-    // Sonra paneli kapatıyor
     setIsNaceAcik(false);
   };
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 relative ${isDarkMode ? 'bg-[#091424] text-gray-200' : 'bg-[#f4f7f9] text-[#212529]'}`}>
 
-      {/* ⬇️ GÖRSELDEKİ TURUNCU UYARI (TOAST) KUTUCUĞU ⬇️ */}
       {toastMesaj && (
         <div className="fixed top-20 right-6 w-80 bg-[#e67e22] rounded shadow-lg z-[100] overflow-hidden border border-[#d35400] animate-bounce">
           <div className="flex justify-between items-center px-4 py-2 bg-[#d35400] text-white font-bold text-[13px]">
@@ -131,7 +137,6 @@ export default function Home() {
       </header>
 
       <main className="flex-grow p-4 md:p-6 flex justify-center">
-        {/* SENİN ÖZEL %98 GENİŞLİK AYARIN */}
         <div className={`w-full max-w-[98%] rounded-md shadow-sm border flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-[#0f1f38] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
 
           <div className={`flex items-center gap-4 p-5 md:px-6 md:py-5 border-b ${isDarkMode ? 'border-[#162947]' : 'border-[#dee2e6]'}`}>
@@ -146,14 +151,12 @@ export default function Home() {
 
           <div className="p-5 md:p-6">
             <div className={`border rounded-md p-5 ${isDarkMode ? 'border-[#162947] bg-[#0c192d]' : 'border-[#dee2e6] bg-white'}`}>
-
               <div className="flex items-center gap-2 mb-5">
                 <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 320 512" className={`w-3 h-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`} xmlns="http://www.w3.org/2000/svg"><path d="M143 352.3L7 216.3c-9.4-9.4-9.4-24.6 0-33.9l22.6-22.6c9.4-9.4 24.6-9.4 33.9 0l96.4 96.4 96.4-96.4c9.4-9.4 24.6-9.4 33.9 0l22.6 22.6c9.4 9.4 9.4 24.6 0 33.9l-136 136c-9.2 9.4-24.4 9.4-33.8 0z"></path></svg>
                 <h2 className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-200' : 'text-[#212529]'}`}>Sorgu Kriterleri</h2>
               </div>
 
               <div className="space-y-4">
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Oda Sicil No</label>
@@ -179,26 +182,23 @@ export default function Home() {
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Meslek Grubu</label>
                     <select name="meslekGrubu" value={kriterler.meslekGrubu} onChange={handleKutuDegisimi} className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] appearance-none ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-gray-300' : 'bg-white border-[#ced4da] text-[#495057]'}`}>
                       <option>Seçiniz</option>
-                      <option>01-YAŞ SEBZE MEYVE GRUBU</option>
-                      <option>79 - BİLİŞİM TEKNOLOJİLERİ GRUBU</option>
-                      <option>67 - İNŞAAT YAPIM VE ONARIM GRUBU</option>
-                      <option>84 - OTOMOTİV VE DİĞER ULAŞIM ARAÇLARI PARÇALARININ PERAKENDE SATIŞI GRUBU</option>
+                      {meslekListesi.map((meslek, index) => (
+                        <option key={index} value={meslek}>{meslek}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>İlçe</label>
                     <select name="ilce" value={kriterler.ilce} onChange={handleKutuDegisimi} className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] appearance-none ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-gray-300' : 'bg-white border-[#ced4da] text-[#495057]'}`}>
                       <option>Seçiniz</option>
-                      <option>BALÇOVA</option>
-                      <option>BORNOVA</option>
-                      <option>KONAK</option>
+                      {ilceListesi.map((ilceAd, index) => (
+                        <option key={index} value={ilceAd}>{ilceAd}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                {/* SENİN ÖZEL YAN YANA VE 120PX, 360PX AYARLARIN */}
                 <div className="flex flex-row flex-nowrap items-end gap-2.5 pt-3 overflow-x-auto pb-2 w-full">
-
                   <div className="flex flex-col shrink-0">
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Nace Kodu</label>
                     <div className="flex flex-row gap-2.5">
@@ -208,7 +208,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Nace Kodu Yardım Butonu */}
                   <button onClick={handleNaceYardimToggle} className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#0088cc] hover:bg-[#0077b3] text-white font-bold rounded text-[13px] transition whitespace-nowrap">
                     {isNaceAcik ? "Nace Kodu Yardım Kapat" : "Nace Kodu Yardım"}
                   </button>
@@ -240,13 +239,10 @@ export default function Home() {
                       TOPLAM ÜYE FİRMA SAYISI : {filtrelenmisFirmalar.length}
                     </div>
                   )}
-
                 </div>
-
               </div>
             </div>
 
-            {/* ⬇️ YENİ EKLENEN NACE KODU YARDIM PANELİ ⬇️ */}
             {isNaceAcik && (
               <div className={`mt-4 border rounded-md shadow-sm overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-[#0c192d] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
                 <div className={`flex justify-between items-center p-3 border-b ${isDarkMode ? 'bg-[#0f1f38] border-[#162947]' : 'bg-[#f8f9fa] border-[#dee2e6]'}`}>
@@ -265,21 +261,8 @@ export default function Home() {
                         <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>Nace Adı</th>
                         <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>İng.Nace Adı</th>
                       </tr>
-                      {/* Tablo İçi Arama Kutuları */}
-                      <tr className={isDarkMode ? 'border-b border-[#162947]' : 'border-b border-[#dee2e6]'}>
-                        <td className="px-3 pb-3">
-                          <input type="text" placeholder="Kod ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
-                        </td>
-                        <td className="px-3 pb-3">
-                          <input type="text" placeholder="Nace adında ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
-                        </td>
-                        <td className="px-3 pb-3">
-                          <input type="text" placeholder="İngilizce Nace adında ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
-                        </td>
-                      </tr>
                     </thead>
                     <tbody>
-                      {/* Görseldeki Mock Veriler */}
                       {[
                         { kod: "01.13.17", ad: "Şeker pancarı yetiştirilmesi", ing: "Growing sugar cane" },
                         { kod: "01.13.18", ad: "Yenilebilir kök ve yumruların yetiştiriciliği", ing: "Cultivation of edible roots and tubers" },
@@ -289,7 +272,7 @@ export default function Home() {
                       ].map((item, index) => (
                         <tr 
                           key={index} 
-                          onClick={() => handleNaceSatirSec(item.kod)} // Tıklanınca senin 120px'lik kutulara atar
+                          onClick={() => handleNaceSatirSec(item.kod)}
                           className={`cursor-pointer transition-colors ${isDarkMode ? 'border-b border-[#162947] hover:bg-[#162947]' : 'border-b border-[#dee2e6] hover:bg-[#f8f9fa]'}`}
                         >
                           <td className={`p-3 font-bold ${isDarkMode ? 'text-[#5b95ff]' : 'text-[#0056b3]'}`}>{item.kod}</td>
@@ -303,7 +286,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Alt Kısım - Sorgu Sonuçları */}
             <div className="mt-8">
               <div className={`flex items-center gap-2 mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
                 <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M64 144a48 48 0 1 0 0-96 48 48 0 1 0 0 96zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zM64 464a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm48-208a48 48 0 1 0 -96 0 48 48 0 1 0 96 0z"></path></svg>
@@ -319,7 +301,7 @@ export default function Home() {
                     </div>
                   ) : (
                     filtrelenmisFirmalar.map((firma) => (
-                      <div key={firma.id} className={`border rounded-lg p-5 shadow-sm hover:shadow-md transition-all ${isDarkMode ? 'bg-[#0f1f38] border-[#1f375b]' : 'bg-white border-[#dee2e6]'}`}>
+                      <div key={firma.oda_sicil_no} className={`border rounded-lg p-5 shadow-sm hover:shadow-md transition-all ${isDarkMode ? 'bg-[#0f1f38] border-[#1f375b]' : 'bg-white border-[#dee2e6]'}`}>
                         <div className="flex gap-3 mb-4 items-start">
                           <div className={`w-10 h-10 rounded flex-shrink-0 flex items-center justify-center ${isDarkMode ? 'bg-[#162947] text-[#5b95ff]' : 'bg-[#eef2f9] text-[#4a85f6]'}`}>
                             <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg"><path d="M19 2H9c-1.103 0-2 .897-2 2v5.586l-4.707 4.707A1 1 0 0 0 2 15v6c0 1.103.897 2 2 2h15c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zm-8 18H4v-4.586l3-3 4 4V20zm8 0h-6v-6.586l-2.293-2.293L12 9.828V4h7v16z"></path></svg>

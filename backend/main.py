@@ -77,3 +77,17 @@ def firmalari_sorgula(kriterler: AramaKriterleri, db: Session = Depends(get_db))
     sonuclar = sorgu.limit(500).all()
     
     return sonuclar 
+# --- SAYFA YÜKLENİRKEN DROPDOWN KUTULARINI DOLDURACAK API'LER ---
+
+@app.get("/api/meslekler")
+def meslekleri_getir(db: Session = Depends(get_db)):
+    # Veritabanındaki boş olmayan tüm meslek gruplarını tekrarsız (distinct) ve alfabetik çeker
+    sonuclar = db.query(models.Firma.meslek_grubu).filter(models.Firma.meslek_grubu != None, models.Firma.meslek_grubu != "").distinct().order_by(models.Firma.meslek_grubu).all()
+    # Gelen veriyi düz bir JSON listesine çevirip frontend'e yollar
+    return [item[0] for item in sonuclar]
+
+@app.get("/api/ilceler")
+def ilceleri_getir(db: Session = Depends(get_db)):
+    # Veritabanındaki boş olmayan tüm ilçeleri tekrarsız ve alfabetik çeker
+    sonuclar = db.query(models.Firma.ilce).filter(models.Firma.ilce != None, models.Firma.ilce != "").distinct().order_by(models.Firma.ilce).all()
+    return [item[0] for item in sonuclar]
