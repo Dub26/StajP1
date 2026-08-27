@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { mockFirmalar } from '../mock/firmalar';
+
 
 export default function Home() {
   const [isSearched, setIsSearched] = useState(false);
@@ -33,33 +33,38 @@ export default function Home() {
   const [isNaceAcik, setIsNaceAcik] = useState(false); // Nace paneli açık mı?
   const [toastMesaj, setToastMesaj] = useState<string | null>(null); // Turuncu uyarı mesajı
 
-  const handleSorgula = () => {
+  const handleSorgula = async () => {
+    // 1. Butona basıldığı an yükleniyor animasyonunu başlat
     setIsLoading(true);
 
-    setTimeout(() => {
-      const sonuclar = mockFirmalar.filter((firma) => {
-        let eslesti = true;
-        if (kriterler.unvan !== "" && !firma.unvani.toLowerCase().includes(kriterler.unvan.toLowerCase())) eslesti = false;
-        if (kriterler.odaSicilNo !== "" && firma.oda_sicil_no !== kriterler.odaSicilNo) eslesti = false;
-        if (kriterler.ticaretSicilNo !== "" && firma.ticari_sicil_no !== kriterler.ticaretSicilNo) eslesti = false;
-        if (kriterler.ilce !== "Seçiniz" && firma.ilce !== kriterler.ilce) eslesti = false;
-
-        if (kriterler.meslekGrubu !== "Seçiniz" && firma.meslek_grubu !== kriterler.meslekGrubu) eslesti = false;
-
-        const naceKoduSadeceSayilar = firma.nace_kodu.split(" ")[0];
-        const naceParcalari = naceKoduSadeceSayilar.split(".");
-        if (kriterler.nace1 !== "" && naceParcalari[0] !== kriterler.nace1) eslesti = false;
-        if (kriterler.nace2 !== "" && naceParcalari[1] !== kriterler.nace2) eslesti = false;
-        if (kriterler.nace3 !== "" && naceParcalari[2] !== kriterler.nace3) eslesti = false;
-
-        return eslesti;
+    try {
+      // 2. FastAPI Backend'ine (kendi yazdığımız motora) gerçek bir istek (POST) atıyoruz!
+      const response = await fetch("http://localhost:8000/api/firmalar/sorgula", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(kriterler), // Frontend'deki kutularda ne yazıyorsa aynen yolla
       });
 
-      setFiltrelenmisFirmalar(sonuclar);
+      if (!response.ok) {
+        throw new Error("Sunucuya ulaşılamadı veya bir hata oluştu.");
+      }
+
+      // 3. Backend'den dönen gerçek MySQL verilerini (JSON) al
+      const gercekVeriler = await response.json();
+
+      // 4. Verileri ekrana (state'e) bas
+      setFiltrelenmisFirmalar(gercekVeriler);
       setIsSearched(true);
 
+    } catch (error) {
+      console.error("Arama hatası:", error);
+      alert("Backend'e ulaşılamıyor! Terminalde uvicorn sunucusunun çalıştığından emin ol.");
+    } finally {
+      // 5. İşlem bitince yükleniyor animasyonunu durdur
       setIsLoading(false);
-    }, 1000); 
+    }
   };
 
   // --- YENİ EKLENEN NACE KODU MANTIĞI ---
