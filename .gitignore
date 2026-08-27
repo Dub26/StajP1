@@ -28,3 +28,4 @@ yarn-debug.log*
 pnpm-debug.log*
 .pnpm-debug.log*
 .env*.local
+next-env.d.ts
