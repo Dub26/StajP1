@@ -14,3 +14,18 @@ ham_veriler/
 
 # macOS sistem dosyaları
 .DS_Store
+
+# === Node.js / Next.js Filtreleri ===
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Debug ve Log Dosyaları
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.env*.local
+next-env.d.ts
