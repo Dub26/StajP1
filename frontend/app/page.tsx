@@ -27,26 +27,84 @@ export default function Home() {
     setKriterler({ ...kriterler, [kutuAdi]: yazilanYazi });
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- YENİ EKLENEN STATE'LER ---
+  const [isNaceAcik, setIsNaceAcik] = useState(false); // Nace paneli açık mı?
+  const [toastMesaj, setToastMesaj] = useState<string | null>(null); // Turuncu uyarı mesajı
+
   const handleSorgula = () => {
-    const sonuclar = mockFirmalar.filter((firma) => {
-      let eslesti = true;
-      if (kriterler.unvan !== "" && !firma.unvani.toLowerCase().includes(kriterler.unvan.toLowerCase())) eslesti = false;
-      if (kriterler.odaSicilNo !== "" && firma.oda_sicil_no !== kriterler.odaSicilNo) eslesti = false;
-      if (kriterler.ticaretSicilNo !== "" && firma.ticari_sicil_no !== kriterler.ticaretSicilNo) eslesti = false;
-      if (kriterler.ilce !== "Seçiniz" && firma.ilce !== kriterler.ilce) eslesti = false;
-      return eslesti;
-    });
-    setFiltrelenmisFirmalar(sonuclar);
-    setIsSearched(true);
+    setIsLoading(true);
+
+    setTimeout(() => {
+      const sonuclar = mockFirmalar.filter((firma) => {
+        let eslesti = true;
+        if (kriterler.unvan !== "" && !firma.unvani.toLowerCase().includes(kriterler.unvan.toLowerCase())) eslesti = false;
+        if (kriterler.odaSicilNo !== "" && firma.oda_sicil_no !== kriterler.odaSicilNo) eslesti = false;
+        if (kriterler.ticaretSicilNo !== "" && firma.ticari_sicil_no !== kriterler.ticaretSicilNo) eslesti = false;
+        if (kriterler.ilce !== "Seçiniz" && firma.ilce !== kriterler.ilce) eslesti = false;
+
+        if (kriterler.meslekGrubu !== "Seçiniz" && firma.meslek_grubu !== kriterler.meslekGrubu) eslesti = false;
+
+        const naceKoduSadeceSayilar = firma.nace_kodu.split(" ")[0];
+        const naceParcalari = naceKoduSadeceSayilar.split(".");
+        if (kriterler.nace1 !== "" && naceParcalari[0] !== kriterler.nace1) eslesti = false;
+        if (kriterler.nace2 !== "" && naceParcalari[1] !== kriterler.nace2) eslesti = false;
+        if (kriterler.nace3 !== "" && naceParcalari[2] !== kriterler.nace3) eslesti = false;
+
+        return eslesti;
+      });
+
+      setFiltrelenmisFirmalar(sonuclar);
+      setIsSearched(true);
+
+      setIsLoading(false);
+    }, 1000); 
   };
 
-  const handleNaceYardim = () => {
-    alert("Nace Kodu arama penceresi buraya eklenecektir.");
+  // --- YENİ EKLENEN NACE KODU MANTIĞI ---
+  const handleNaceYardimToggle = () => {
+    // Meslek Grubu seçilmediyse turuncu uyarıyı ver
+    if (kriterler.meslekGrubu === "Seçiniz" || kriterler.meslekGrubu === "") {
+      setToastMesaj("Lütfen Meslek Grubunu Seçiniz!!!");
+      setIsNaceAcik(false); 
+      // Uyarıyı 4 saniye sonra otomatik ekrandan sil
+      setTimeout(() => setToastMesaj(null), 4000);
+    } else {
+      // Seçiliyse paneli aç/kapat
+      setIsNaceAcik(!isNaceAcik);
+    }
+  };
+
+  const handleNaceSatirSec = (kod: string) => {
+    // Kodu seçince senin 120px'lik 3 kutuna parçalayıp dolduruyor
+    const parcalar = kod.split(".");
+    setKriterler({
+      ...kriterler,
+      nace1: parcalar[0] || "",
+      nace2: parcalar[1] || "",
+      nace3: parcalar[2] || ""
+    });
+    // Sonra paneli kapatıyor
+    setIsNaceAcik(false);
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${isDarkMode ? 'bg-[#091424] text-gray-200' : 'bg-[#f4f7f9] text-[#212529]'}`}>
-      
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 relative ${isDarkMode ? 'bg-[#091424] text-gray-200' : 'bg-[#f4f7f9] text-[#212529]'}`}>
+
+      {/* ⬇️ GÖRSELDEKİ TURUNCU UYARI (TOAST) KUTUCUĞU ⬇️ */}
+      {toastMesaj && (
+        <div className="fixed top-20 right-6 w-80 bg-[#e67e22] rounded shadow-lg z-[100] overflow-hidden border border-[#d35400] animate-bounce">
+          <div className="flex justify-between items-center px-4 py-2 bg-[#d35400] text-white font-bold text-[13px]">
+            <span>Bilgi</span>
+            <button onClick={() => setToastMesaj(null)} className="text-gray-200 hover:text-white transition">✕</button>
+          </div>
+          <div className="p-4 text-white text-[13px] font-medium">
+            {toastMesaj}
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className={`sticky top-0 z-50 h-16 flex items-center justify-between px-6 border-b shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-[#050a13] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
         <div className="flex items-center gap-3">
@@ -54,8 +112,8 @@ export default function Home() {
           <span className={`text-lg font-semibold tracking-wide ${isDarkMode ? 'text-white' : 'text-[#6c757d]'}`}>İzmir Ticaret Odası</span>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsDarkMode(!isDarkMode)} 
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
             className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#162947] text-yellow-400 hover:bg-[#1f375b]' : 'bg-orange-50 text-orange-400 hover:bg-orange-100'}`}
           >
             {isDarkMode ? (
@@ -68,8 +126,9 @@ export default function Home() {
       </header>
 
       <main className="flex-grow p-4 md:p-6 flex justify-center">
+        {/* SENİN ÖZEL %98 GENİŞLİK AYARIN */}
         <div className={`w-full max-w-[98%] rounded-md shadow-sm border flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-[#0f1f38] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
-          
+
           <div className={`flex items-center gap-4 p-5 md:px-6 md:py-5 border-b ${isDarkMode ? 'border-[#162947]' : 'border-[#dee2e6]'}`}>
             <div className={`w-11 h-11 rounded flex items-center justify-center ${isDarkMode ? 'bg-[#162947] text-[#5b95ff]' : 'bg-[#eef2f9] text-[#4a85f6]'}`}>
               <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" className="w-6 h-6" xmlns="http://www.w3.org/2000/svg"><path d="M19 2H9c-1.103 0-2 .897-2 2v5.586l-4.707 4.707A1 1 0 0 0 2 15v6c0 1.103.897 2 2 2h15c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zm-8 18H4v-4.586l3-3 4 4V20zm8 0h-6v-6.586l-2.293-2.293L12 9.828V4h7v16z"></path></svg>
@@ -82,14 +141,14 @@ export default function Home() {
 
           <div className="p-5 md:p-6">
             <div className={`border rounded-md p-5 ${isDarkMode ? 'border-[#162947] bg-[#0c192d]' : 'border-[#dee2e6] bg-white'}`}>
-              
+
               <div className="flex items-center gap-2 mb-5">
                 <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 320 512" className={`w-3 h-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-800'}`} xmlns="http://www.w3.org/2000/svg"><path d="M143 352.3L7 216.3c-9.4-9.4-9.4-24.6 0-33.9l22.6-22.6c9.4-9.4 24.6-9.4 33.9 0l96.4 96.4 96.4-96.4c9.4-9.4 24.6-9.4 33.9 0l22.6 22.6c9.4 9.4 9.4 24.6 0 33.9l-136 136c-9.2 9.4-24.4 9.4-33.8 0z"></path></svg>
                 <h2 className={`text-[14px] font-bold ${isDarkMode ? 'text-gray-200' : 'text-[#212529]'}`}>Sorgu Kriterleri</h2>
               </div>
 
               <div className="space-y-4">
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Oda Sicil No</label>
@@ -115,6 +174,7 @@ export default function Home() {
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Meslek Grubu</label>
                     <select name="meslekGrubu" value={kriterler.meslekGrubu} onChange={handleKutuDegisimi} className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] appearance-none ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-gray-300' : 'bg-white border-[#ced4da] text-[#495057]'}`}>
                       <option>Seçiniz</option>
+                      <option>01-YAŞ SEBZE MEYVE GRUBU</option>
                       <option>79 - BİLİŞİM TEKNOLOJİLERİ GRUBU</option>
                       <option>67 - İNŞAAT YAPIM VE ONARIM GRUBU</option>
                       <option>84 - OTOMOTİV VE DİĞER ULAŞIM ARAÇLARI PARÇALARININ PERAKENDE SATIŞI GRUBU</option>
@@ -131,10 +191,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* ⬇️ İŞTE GÖRSELDEKİ O İP GİBİ DİZİLİŞ (items-end ve gap-2.5) ⬇️ */}
+                {/* SENİN ÖZEL YAN YANA VE 120PX, 360PX AYARLARIN */}
                 <div className="flex flex-row flex-nowrap items-end gap-2.5 pt-3 overflow-x-auto pb-2 w-full">
-                  
-                  {/* Nace Kodu Alanı (Label üstte, kutular altta) */}
+
                   <div className="flex flex-col shrink-0">
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Nace Kodu</label>
                     <div className="flex flex-row gap-2.5">
@@ -143,21 +202,34 @@ export default function Home() {
                       <input type="text" name="nace3" value={kriterler.nace3} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
                     </div>
                   </div>
-                  
-                  {/* Butonlar: items-end komutu sayesinde inputlarla tam alt çizgide hizalanırlar */}
-                  <button onClick={handleNaceYardim} className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#0088cc] hover:bg-[#0077b3] text-white font-bold rounded text-[13px] transition whitespace-nowrap">
-                    Nace Kodu Yardım
+
+                  {/* Nace Kodu Yardım Butonu */}
+                  <button onClick={handleNaceYardimToggle} className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#0088cc] hover:bg-[#0077b3] text-white font-bold rounded text-[13px] transition whitespace-nowrap">
+                    {isNaceAcik ? "Nace Kodu Yardım Kapat" : "Nace Kodu Yardım"}
                   </button>
-                  
-                  <button onClick={handleSorgula} className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#28a745] hover:bg-[#218838] text-white font-bold rounded text-[13px] transition whitespace-nowrap">
-                    Sorgula
+
+                  <button onClick={handleSorgula}
+                    disabled={isLoading} 
+                    className={`w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center text-white font-bold rounded text-[13px] transition whitespace-nowrap ${isLoading ? 'bg-[#218838] opacity-80 cursor-not-allowed' : 'bg-[#28a745] hover:bg-[#218838]'}`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Aranıyor...
+                      </>
+                    ) : (
+                      "Sorgula"
+                    )}
                   </button>
-                  
+
                   <button className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#28a745] hover:bg-[#218838] text-white font-bold rounded text-[13px] transition gap-1.5 whitespace-nowrap">
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 384 512" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L222.4 341.6c-2.7 3-7.2 3-9.8 0l-16-17.7c-2.7-3-2.7-7.8 0-10.8l38.2-42.3h-100c-3.9 0-7-3.1-7-7v-20c0-3.9 3.1-7 7-7h100l-38.2-42.3c-2.7-3-2.7-7.8 0-10.8l16-17.7c2.7-3 7.2-3 9.8 0l61.7 68.3c3.1 3.5 3.1 9 0 12.4zM384 121.9v6.1H256V0h6.1c6.4 0 12.5 2.5 17 7l97.9 98c4.5 4.5 7 10.6 7 16.9z"></path></svg>
                     Excel
                   </button>
-                  
+
                   {isSearched && (
                     <div className={`px-4 shrink-0 h-[40px] flex items-center justify-center text-center font-bold text-[13px] rounded border ${isDarkMode ? 'bg-[#0f243b] text-[#5b95ff] border-[#1f375b]' : 'bg-[#d1ecf1] text-[#0c5460] border-[#bee5eb]'}`}>
                       TOPLAM ÜYE FİRMA SAYISI : {filtrelenmisFirmalar.length}
@@ -168,6 +240,63 @@ export default function Home() {
 
               </div>
             </div>
+
+            {/* ⬇️ YENİ EKLENEN NACE KODU YARDIM PANELİ ⬇️ */}
+            {isNaceAcik && (
+              <div className={`mt-4 border rounded-md shadow-sm overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-[#0c192d] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
+                <div className={`flex justify-between items-center p-3 border-b ${isDarkMode ? 'bg-[#0f1f38] border-[#162947]' : 'bg-[#f8f9fa] border-[#dee2e6]'}`}>
+                  <div className={`font-bold text-[14px] flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-[#212529]'}`}>
+                    <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M505 442.7L405.3 343c-4.5-4.5-10.6-7-17-7H372c27.6-35.3 44-79.7 44-128C416 93.1 322.9 0 208 0S0 93.1 0 208s93.1 208 208 208c48.3 0 92.7-16.4 128-44v16.3c0 6.4 2.5 12.5 7 17l99.7 99.7c9.4 9.4 24.6 9.4 33.9 0l28.3-28.3c9.4-9.4 9.4-24.6.1-34zM208 336c-70.7 0-128-57.2-128-128 0-70.7 57.2-128 128-128 70.7 0 128 57.2 128 128 0 70.7-57.2 128-128 128z"></path></svg>
+                    NACE Kodu Yardım
+                  </div>
+                  <div className={`text-[12px] ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Seçmek istediğiniz satıra tıklayınız.</div>
+                </div>
+                
+                <div className="overflow-x-auto max-h-[300px]">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-[#0f1f38]' : 'bg-white'}`}>
+                      <tr>
+                        <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>Nace Kodu</th>
+                        <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>Nace Adı</th>
+                        <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>İng.Nace Adı</th>
+                      </tr>
+                      {/* Tablo İçi Arama Kutuları */}
+                      <tr className={isDarkMode ? 'border-b border-[#162947]' : 'border-b border-[#dee2e6]'}>
+                        <td className="px-3 pb-3">
+                          <input type="text" placeholder="Kod ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
+                        </td>
+                        <td className="px-3 pb-3">
+                          <input type="text" placeholder="Nace adında ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
+                        </td>
+                        <td className="px-3 pb-3">
+                          <input type="text" placeholder="İngilizce Nace adında ara..." className={`w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
+                        </td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Görseldeki Mock Veriler */}
+                      {[
+                        { kod: "01.13.17", ad: "Şeker pancarı yetiştirilmesi", ing: "Growing sugar cane" },
+                        { kod: "01.13.18", ad: "Yenilebilir kök ve yumruların yetiştiriciliği", ing: "Cultivation of edible roots and tubers" },
+                        { kod: "01.13.19", ad: "Diğer sebze tohumlarının yetiştiriciliği", ing: "Growing other vegetable seeds" },
+                        { kod: "01.13.20", ad: "Meyvesi yenen sebzelerin yetiştirilmesi", ing: "Growing of vegetables with edible fruits" },
+                        { kod: "11.43.35", ad: "Mock Nace Kodu (Görsel Testi)", ing: "Mock Nace Code (Visual Test)" }
+                      ].map((item, index) => (
+                        <tr 
+                          key={index} 
+                          onClick={() => handleNaceSatirSec(item.kod)} // Tıklanınca senin 120px'lik kutulara atar
+                          className={`cursor-pointer transition-colors ${isDarkMode ? 'border-b border-[#162947] hover:bg-[#162947]' : 'border-b border-[#dee2e6] hover:bg-[#f8f9fa]'}`}
+                        >
+                          <td className={`p-3 font-bold ${isDarkMode ? 'text-[#5b95ff]' : 'text-[#0056b3]'}`}>{item.kod}</td>
+                          <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>{item.ad}</td>
+                          <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>{item.ing}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Alt Kısım - Sorgu Sonuçları */}
             <div className="mt-8">
