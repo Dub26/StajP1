@@ -16,7 +16,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+ 
 # Frontend'den gelecek JSON paketinin haritası (Kutu isimleriyle aynı olmalı)
 class AramaKriterleri(BaseModel):
     odaSicilNo: str
@@ -74,7 +74,7 @@ def firmalari_sorgula(kriterler: AramaKriterleri, db: Session = Depends(get_db))
         sorgu = sorgu.filter(models.Firma.nace_kodu.startswith(nace_sablonu))
 
     # Çok fazla sonuç gelip tarayıcıyı çökertmesin diye maksimum 500 kayıt yollayalım
-    sonuclar = sorgu.limit(500).all()
+    sonuclar = sorgu.all()
     
     return sonuclar 
 # --- SAYFA YÜKLENİRKEN DROPDOWN KUTULARINI DOLDURACAK API'LER ---

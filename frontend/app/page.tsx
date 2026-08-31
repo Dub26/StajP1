@@ -46,12 +46,32 @@ export default function Home() {
     listeleriCek();
   }, []);
 
-  const handleKutuDegisimi = (e: any) => {
+ const handleKutuDegisimi = (e: any) => {
     const kutuAdi = e.target.name;
     const yazilanYazi = e.target.value;
-    setKriterler({ ...kriterler, [kutuAdi]: yazilanYazi });
-  };
 
+    // Sadece rakam kabul etmesi gereken kutuların listesi
+    const sayisalKutular = ["odaSicilNo", "ilceKodu", "ticaretSicilNo", "nace1", "nace2", "nace3"];
+
+    // Rakam kontrolü
+    if (sayisalKutular.includes(kutuAdi)) {
+      if (!/^\d*$/.test(yazilanYazi)) {
+        return;
+      }
+    }
+
+    setKriterler({ ...kriterler, [kutuAdi]: yazilanYazi });
+
+    // --- OTOMATİK KUTU ATLATMA MANTIĞI ---
+    // Eğer kutuya yazılan yazı 2 karaktere ulaştıysa:
+    if (yazilanYazi.length === 2) {
+      if (kutuAdi === "nace1") {
+        document.getElementById("nace2")?.focus(); // nace2 kutusuna zıpla
+      } else if (kutuAdi === "nace2") {
+        document.getElementById("nace3")?.focus(); // nace3 kutusuna zıpla
+      }
+    }
+  };
   const handleSorgula = async () => {
     setIsLoading(true);
 
@@ -202,9 +222,9 @@ export default function Home() {
                   <div className="flex flex-col shrink-0">
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Nace Kodu</label>
                     <div className="flex flex-row gap-2.5">
-                      <input type="text" name="nace1" value={kriterler.nace1} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
-                      <input type="text" name="nace2" value={kriterler.nace2} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
-                      <input type="text" name="nace3" value={kriterler.nace3} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
+                     <input type="text" id="nace1" name="nace1" maxLength={2} value={kriterler.nace1} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
+<input type="text" id="nace2" name="nace2" maxLength={2} value={kriterler.nace2} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
+<input type="text" id="nace3" name="nace3" maxLength={2} value={kriterler.nace3} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
                     </div>
                   </div>
 
