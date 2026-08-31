@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import * as XLSX from 'xlsx';
 
 export default function Home() {
   const [isSearched, setIsSearched] = useState(false);
@@ -46,7 +47,7 @@ export default function Home() {
     listeleriCek();
   }, []);
 
- const handleKutuDegisimi = (e: any) => {
+  const handleKutuDegisimi = (e: any) => {
     const kutuAdi = e.target.name;
     const yazilanYazi = e.target.value;
 
@@ -72,6 +73,39 @@ export default function Home() {
       }
     }
   };
+
+  const exceleAktar = () => {
+    // Eğer tabloda hiç firma yoksa boşuna boş Excel indirmesin
+    if (filtrelenmisFirmalar.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı! Lütfen önce sorgulama yapın.");
+      return;
+    }
+
+    // Gelen ham veriyi Excel'de şık duracak Türkçe başlıklara dönüştürüyoruz
+    const excelVerisi = filtrelenmisFirmalar.map((firma: any) => ({
+      "Oda Sicil No": firma.oda_sicil_no,
+      "Ticaret Sicil No": firma.ticari_sicil_no,
+      "Firma Ünvanı": firma.unvani,
+      "İlçe": firma.ilce,
+      "Meslek Grubu": firma.meslek_grubu,
+      "NACE Kodu": firma.nace_kodu,
+      "Adres": firma.tescilli_adresi,
+      "Web Sitesi": firma.web_adresi
+    }));
+
+    // 1. Veriyi bir Excel sayfasına (worksheet) çevir
+    const worksheet = XLSX.utils.json_to_sheet(excelVerisi);
+    
+    // 2. Yeni bir Excel Çalışma Kitabı (workbook) oluştur
+    const workbook = XLSX.utils.book_new();
+    
+    // 3. Sayfayı çalışma kitabına ekle ve adını "Firmalar" yap
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Firmalar");
+    
+    // 4. Dosyayı kullanıcının bilgisayarına indir!
+    XLSX.writeFile(workbook, "IZTO_Firma_Listesi.xlsx");
+  };
+
   const handleSorgula = async () => {
     setIsLoading(true);
 
@@ -99,7 +133,7 @@ export default function Home() {
       setIsLoading(false);
     }
   };
-
+    
   const handleNaceYardimToggle = () => {
     if (kriterler.meslekGrubu === "Seçiniz" || kriterler.meslekGrubu === "") {
       setToastMesaj("Lütfen Meslek Grubunu Seçiniz!!!");
@@ -223,8 +257,8 @@ export default function Home() {
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Nace Kodu</label>
                     <div className="flex flex-row gap-2.5">
                      <input type="text" id="nace1" name="nace1" maxLength={2} value={kriterler.nace1} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
-<input type="text" id="nace2" name="nace2" maxLength={2} value={kriterler.nace2} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
-<input type="text" id="nace3" name="nace3" maxLength={2} value={kriterler.nace3} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
+                     <input type="text" id="nace2" name="nace2" maxLength={2} value={kriterler.nace2} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
+                     <input type="text" id="nace3" name="nace3" maxLength={2} value={kriterler.nace3} onChange={handleKutuDegisimi} placeholder="00" className={`w-[120px] h-[40px] text-center border rounded px-2 text-[15px] font-bold focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white' : 'bg-white border-[#ced4da] text-[#212529]'}`} />
                     </div>
                   </div>
 
@@ -249,7 +283,7 @@ export default function Home() {
                     )}
                   </button>
 
-                  <button className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#28a745] hover:bg-[#218838] text-white font-bold rounded text-[13px] transition gap-1.5 whitespace-nowrap">
+                  <button onClick={exceleAktar} className="w-[360px] shrink-0 h-[40px] flex items-center justify-center text-center bg-[#28a745] hover:bg-[#218838] text-white font-bold rounded text-[13px] transition gap-1.5 whitespace-nowrap">
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 384 512" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L222.4 341.6c-2.7 3-7.2 3-9.8 0l-16-17.7c-2.7-3-2.7-7.8 0-10.8l38.2-42.3h-100c-3.9 0-7-3.1-7-7v-20c0-3.9 3.1-7 7-7h100l-38.2-42.3c-2.7-3-2.7-7.8 0-10.8l16-17.7c2.7-3 7.2-3 9.8 0l61.7 68.3c3.1 3.5 3.1 9 0 12.4zM384 121.9v6.1H256V0h6.1c6.4 0 12.5 2.5 17 7l97.9 98c4.5 4.5 7 10.6 7 16.9z"></path></svg>
                     Excel
                   </button>
