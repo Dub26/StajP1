@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from database import engine, SessionLocal, Base
 import models
 
+
+
 # Uygulamayı başlat
 app = FastAPI()
 
@@ -91,3 +93,29 @@ def ilceleri_getir(db: Session = Depends(get_db)):
     # Veritabanındaki boş olmayan tüm ilçeleri tekrarsız ve alfabetik çeker
     sonuclar = db.query(models.Firma.ilce).filter(models.Firma.ilce != None, models.Firma.ilce != "").distinct().order_by(models.Firma.ilce).all()
     return [item[0] for item in sonuclar]
+@app.get("/api/nace_kodlari/{meslek_grubu}")
+def get_nace_kodlari(meslek_grubu: str, db: Session = Depends(get_db)):
+    # 1. Seçilen meslek grubuna ait benzersiz NACE kodlarını veritabanından çek
+    firmalar = db.query(models.Firma.nace_kodu).filter(
+        models.Firma.meslek_grubu == meslek_grubu,
+        models.Firma.nace_kodu != None
+    ).distinct().all()
+    
+    nace_listesi = []
+    for f in firmalar:
+        nace_metni = f[0] # Örn: "01.13.20 - Meyvesi yenen sebzelerin yetiştirilmesi"
+        if nace_metni:
+            # Kodu ve Adı " - " işaretinden böl
+            parcalar = nace_metni.split(" - ", 1)
+            kod = parcalar[0].strip() if len(parcalar) > 0 else ""
+            ad = parcalar[1].strip() if len(parcalar) > 1 else ""
+            
+            if kod:
+                nace_listesi.append({
+                    "kod": kod,
+                    "ad": ad
+                })
+    
+    # NACE kodlarına göre küçükten büyüğe sırala
+    nace_listesi = sorted(nace_listesi, key=lambda x: x["kod"])
+    return nace_listesi

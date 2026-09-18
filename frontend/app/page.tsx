@@ -3,6 +3,17 @@
 import { useState, useEffect } from "react";
 import * as XLSX from 'xlsx';
 
+// SUNUM İÇİN ARAYÜZ ÇEVİRİ SÖZLÜĞÜ (Frontend Dictionary)
+// Veritabanında olmayan İngilizce isimleri arayüzde eşleştirir
+const ingilizceNaceSozlugu: Record<string, string> = {
+  "01.13.17": "Growing sugar cane",
+  "01.13.18": "Cultivation of edible roots and tubers",
+  "01.13.19": "Growing other vegetable seeds",
+  "01.13.20": "Growing of vegetables with edible fruits",
+  "46.17.02": "Wholesale trade services on a fee or contract basis",
+  "47.21.01": "Retail sale of fresh fruits and vegetables"
+};
+
 export default function Home() {
   const [isSearched, setIsSearched] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -20,16 +31,14 @@ export default function Home() {
   });
 
   const [filtrelenmisFirmalar, setFiltrelenmisFirmalar] = useState<any[]>([]);
-  
-  // Backend'den gelecek verileri tutacağımız state'ler
   const [meslekListesi, setMeslekListesi] = useState<string[]>([]);
   const [ilceListesi, setIlceListesi] = useState<string[]>([]);
+  const [naceListesi, setNaceListesi] = useState<any[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [isNaceAcik, setIsNaceAcik] = useState(false);
   const [toastMesaj, setToastMesaj] = useState<string | null>(null);
 
-  // --- SAYFA İLK AÇILDIĞINDA İLÇE VE MESLEKLERİ ÇEKEN KISIM ---
   useEffect(() => {
     const listeleriCek = async () => {
       try {
@@ -50,38 +59,37 @@ export default function Home() {
   const handleKutuDegisimi = (e: any) => {
     const kutuAdi = e.target.name;
     const yazilanYazi = e.target.value;
-
-    // Sadece rakam kabul etmesi gereken kutuların listesi
     const sayisalKutular = ["odaSicilNo", "ilceKodu", "ticaretSicilNo", "nace1", "nace2", "nace3"];
 
-    // Rakam kontrolü
     if (sayisalKutular.includes(kutuAdi)) {
-      if (!/^\d*$/.test(yazilanYazi)) {
-        return;
-      }
+      if (!/^\d*$/.test(yazilanYazi)) return;
     }
 
     setKriterler({ ...kriterler, [kutuAdi]: yazilanYazi });
 
-    // --- OTOMATİK KUTU ATLATMA MANTIĞI ---
-    // Eğer kutuya yazılan yazı 2 karaktere ulaştıysa:
     if (yazilanYazi.length === 2) {
-      if (kutuAdi === "nace1") {
-        document.getElementById("nace2")?.focus(); // nace2 kutusuna zıpla
-      } else if (kutuAdi === "nace2") {
-        document.getElementById("nace3")?.focus(); // nace3 kutusuna zıpla
-      }
+      if (kutuAdi === "nace1") document.getElementById("nace2")?.focus(); 
+      else if (kutuAdi === "nace2") document.getElementById("nace3")?.focus(); 
+    }
+    
+    if (kutuAdi === "meslekGrubu") {
+      setIsNaceAcik(false);
+      setNaceListesi([]);
     }
   };
 
+  const handleIlceKoduTikla = () => {
+    setToastMesaj("İlçe Kodu ile arama özelliği sistem altyapısı güncellendiğinde aktif edilecektir.");
+    setTimeout(() => setToastMesaj(null), 4000);
+  };
+
   const exceleAktar = () => {
-    // Eğer tabloda hiç firma yoksa boşuna boş Excel indirmesin
     if (filtrelenmisFirmalar.length === 0) {
-      alert("Dışa aktarılacak veri bulunamadı! Lütfen önce sorgulama yapın.");
+      setToastMesaj("Dışa aktarılacak veri bulunamadı! Lütfen önce kriter girip sorgulama yapınız.");
+      setTimeout(() => setToastMesaj(null), 4000);
       return;
     }
 
-    // Gelen ham veriyi Excel'de şık duracak Türkçe başlıklara dönüştürüyoruz
     const excelVerisi = filtrelenmisFirmalar.map((firma: any) => ({
       "Oda Sicil No": firma.oda_sicil_no,
       "Ticaret Sicil No": firma.ticari_sicil_no,
@@ -93,34 +101,39 @@ export default function Home() {
       "Web Sitesi": firma.web_adresi
     }));
 
-    // 1. Veriyi bir Excel sayfasına (worksheet) çevir
     const worksheet = XLSX.utils.json_to_sheet(excelVerisi);
-    
-    // 2. Yeni bir Excel Çalışma Kitabı (workbook) oluştur
     const workbook = XLSX.utils.book_new();
-    
-    // 3. Sayfayı çalışma kitabına ekle ve adını "Firmalar" yap
     XLSX.utils.book_append_sheet(workbook, worksheet, "Firmalar");
-    
-    // 4. Dosyayı kullanıcının bilgisayarına indir!
     XLSX.writeFile(workbook, "IZTO_Firma_Listesi.xlsx");
   };
 
   const handleSorgula = async () => {
+    const hicbirKriterYok = 
+      !kriterler.odaSicilNo && 
+      !kriterler.ticaretSicilNo && 
+      !kriterler.unvan && 
+      (kriterler.meslekGrubu === "Seçiniz" || !kriterler.meslekGrubu) && 
+      (kriterler.ilce === "Seçiniz" || !kriterler.ilce) && 
+      !kriterler.nace1 && 
+      !kriterler.nace2 && 
+      !kriterler.nace3;
+
+    if (hicbirKriterYok) {
+      setToastMesaj("Lütfen arama yapmak için en az bir kriter giriniz veya seçiniz!");
+      setTimeout(() => setToastMesaj(null), 4000);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const response = await fetch("http://localhost:8000/api/firmalar/sorgula", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(kriterler),
       });
 
-      if (!response.ok) {
-        throw new Error("Sunucuya ulaşılamadı veya bir hata oluştu.");
-      }
+      if (!response.ok) throw new Error("Sunucuya ulaşılamadı.");
 
       const gercekVeriler = await response.json();
       setFiltrelenmisFirmalar(gercekVeriler);
@@ -134,12 +147,23 @@ export default function Home() {
     }
   };
     
-  const handleNaceYardimToggle = () => {
+  const handleNaceYardimToggle = async () => {
     if (kriterler.meslekGrubu === "Seçiniz" || kriterler.meslekGrubu === "") {
-      setToastMesaj("Lütfen Meslek Grubunu Seçiniz!!!");
+      setToastMesaj("Lütfen önce bir Meslek Grubu seçiniz!");
       setIsNaceAcik(false); 
       setTimeout(() => setToastMesaj(null), 4000);
     } else {
+      if (!isNaceAcik) {
+        try {
+          const response = await fetch(`http://localhost:8000/api/nace_kodlari/${encodeURIComponent(kriterler.meslekGrubu)}`);
+          if (response.ok) {
+            const data = await response.json();
+            setNaceListesi(data);
+          }
+        } catch (error) {
+          console.error("Nace kodları çekilemedi:", error);
+        }
+      }
       setIsNaceAcik(!isNaceAcik);
     }
   };
@@ -170,7 +194,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* HEADER */}
       <header className={`sticky top-0 z-50 h-16 flex items-center justify-between px-6 border-b shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-[#050a13] border-[#162947]' : 'bg-white border-[#dee2e6]'}`}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[#1c3a70] flex items-center justify-center text-white text-xs font-bold border-2 border-[#1c3a70] shadow-sm">İZTO</div>
@@ -216,10 +239,12 @@ export default function Home() {
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Oda Sicil No</label>
                     <input type="text" name="odaSicilNo" value={kriterler.odaSicilNo} onChange={handleKutuDegisimi} placeholder="0" className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white placeholder-gray-600' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
                   </div>
-                  <div>
+                  
+                  <div onClick={handleIlceKoduTikla} className="cursor-pointer group">
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>İlçe Kodu</label>
-                    <input type="text" name="ilceKodu" value={kriterler.ilceKodu} onChange={handleKutuDegisimi} placeholder="00" className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white placeholder-gray-600' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
+                    <input type="text" readOnly placeholder="Yakında eklenecek..." className={`w-full h-[40px] border rounded px-3 text-[14px] opacity-70 pointer-events-none transition-colors ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-gray-500' : 'bg-gray-100 border-[#ced4da] text-gray-500 group-hover:bg-gray-200'}`} />
                   </div>
+
                   <div>
                     <label className={`block text-[11px] font-bold uppercase mb-1.5 ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Ticaret Sicil No</label>
                     <input type="text" name="ticaretSicilNo" value={kriterler.ticaretSicilNo} onChange={handleKutuDegisimi} placeholder="0" className={`w-full h-[40px] border rounded px-3 text-[14px] focus:outline-none focus:border-[#80bdff] focus:ring-1 focus:ring-[#80bdff] ${isDarkMode ? 'bg-[#091424] border-[#1f375b] text-white placeholder-gray-600' : 'bg-white border-[#ced4da] text-[#495057]'}`} />
@@ -302,7 +327,7 @@ export default function Home() {
                 <div className={`flex justify-between items-center p-3 border-b ${isDarkMode ? 'bg-[#0f1f38] border-[#162947]' : 'bg-[#f8f9fa] border-[#dee2e6]'}`}>
                   <div className={`font-bold text-[14px] flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-[#212529]'}`}>
                     <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 512 512" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg"><path d="M505 442.7L405.3 343c-4.5-4.5-10.6-7-17-7H372c27.6-35.3 44-79.7 44-128C416 93.1 322.9 0 208 0S0 93.1 0 208s93.1 208 208 208c48.3 0 92.7-16.4 128-44v16.3c0 6.4 2.5 12.5 7 17l99.7 99.7c9.4 9.4 24.6 9.4 33.9 0l28.3-28.3c9.4-9.4 9.4-24.6.1-34zM208 336c-70.7 0-128-57.2-128-128 0-70.7 57.2-128 128-128 70.7 0 128 57.2 128 128 0 70.7-57.2 128-128 128z"></path></svg>
-                    NACE Kodu Yardım
+                    {kriterler.meslekGrubu} Grubu İçin NACE Kodu Yardım
                   </div>
                   <div className={`text-[12px] ${isDarkMode ? 'text-gray-400' : 'text-[#6c757d]'}`}>Seçmek istediğiniz satıra tıklayınız.</div>
                 </div>
@@ -313,27 +338,34 @@ export default function Home() {
                       <tr>
                         <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>Nace Kodu</th>
                         <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>Nace Adı</th>
+                        {/* İNGİLİZCE SÜTUNU GERİ GELDİ */}
                         <th className={`p-3 font-bold ${isDarkMode ? 'text-gray-300' : 'text-[#495057]'}`}>İng.Nace Adı</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        { kod: "01.13.17", ad: "Şeker pancarı yetiştirilmesi", ing: "Growing sugar cane" },
-                        { kod: "01.13.18", ad: "Yenilebilir kök ve yumruların yetiştiriciliği", ing: "Cultivation of edible roots and tubers" },
-                        { kod: "01.13.19", ad: "Diğer sebze tohumlarının yetiştiriciliği", ing: "Growing other vegetable seeds" },
-                        { kod: "01.13.20", ad: "Meyvesi yenen sebzelerin yetiştirilmesi", ing: "Growing of vegetables with edible fruits" },
-                        { kod: "11.43.35", ad: "Mock Nace Kodu (Görsel Testi)", ing: "Mock Nace Code (Visual Test)" }
-                      ].map((item, index) => (
-                        <tr 
-                          key={index} 
-                          onClick={() => handleNaceSatirSec(item.kod)}
-                          className={`cursor-pointer transition-colors ${isDarkMode ? 'border-b border-[#162947] hover:bg-[#162947]' : 'border-b border-[#dee2e6] hover:bg-[#f8f9fa]'}`}
-                        >
-                          <td className={`p-3 font-bold ${isDarkMode ? 'text-[#5b95ff]' : 'text-[#0056b3]'}`}>{item.kod}</td>
-                          <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>{item.ad}</td>
-                          <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>{item.ing}</td>
+                      {naceListesi.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className={`p-4 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Yükleniyor veya bu gruba ait kod bulunamadı...
+                          </td>
                         </tr>
-                      ))}
+                      ) : (
+                        naceListesi.map((item, index) => (
+                          <tr 
+                            key={index} 
+                            onClick={() => handleNaceSatirSec(item.kod)}
+                            className={`cursor-pointer transition-colors ${isDarkMode ? 'border-b border-[#162947] hover:bg-[#162947]' : 'border-b border-[#dee2e6] hover:bg-[#f8f9fa]'}`}
+                          >
+                            <td className={`p-3 font-bold whitespace-nowrap ${isDarkMode ? 'text-[#5b95ff]' : 'text-[#0056b3]'}`}>{item.kod}</td>
+                            <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>{item.ad}</td>
+                            
+                            {/* DİNAMİK İNGİLİZCE SÖZLÜK EŞLEŞTİRMESİ */}
+                            <td className={`p-3 ${isDarkMode ? 'text-gray-300' : 'text-[#212529]'}`}>
+                              {ingilizceNaceSozlugu[item.kod] || "-"}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
